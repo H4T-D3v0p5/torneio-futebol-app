@@ -7,14 +7,14 @@ pool:
 steps:
 - script: |
     echo "=========================================================="
-    echo "🚀 DEPLOY DIRETO E COMPLETO NO KUBERNETES"
+    echo "🚀 DEPLOY LIMPO E AUTOMATIZADO VIA AZURE PIPELINES"
     echo "=========================================================="
     
-    # 1. Injeta o HTML do desenvolvedor direto na memória do cluster
+    # 1. Cria o ConfigMap puxando direto o jogo.html que o Dev enviou ao GitHub
     kubectl create configmap jogo-html --from-file=votos.html=$(System.DefaultWorkingDirectory)/jogo.html -o yaml --dry-run=client | kubectl apply -f -
     
-    # 2. Injeta a API em Python e o Banco PostgreSQL direto (Sem depender de arquivos locais)
-    cat <<EOF | kubectl apply -f -
+    # 2. Cria a infraestrutura do Banco de Dados Relacional PostgreSQL Corporativo
+    cat <<'EOF' | kubectl apply -f -
     apiVersion: v1
     kind: Service
     metadata:
@@ -53,7 +53,10 @@ steps:
               value: javasenha123
             ports:
             - containerPort: 5432
-    ---
+    EOF
+
+    # 3. Cria o Servidor Web Corporativo usando uma linha de comando direta em Python
+    cat <<'EOF' | kubectl apply -f -
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -73,16 +76,13 @@ steps:
             image: python:3.10-slim
             command: ["/bin/sh", "-c"]
             args:
-            - "pip install psycopg2-binary && python /app/app.py"
+            - "cd /app && python -m http.server 8080"
             ports:
             - containerPort: 8080
             volumeMounts:
             - name: html-volume
               mountPath: /app/votos.html
               subPath: votos.html
-            - name: html-volume
-              mountPath: /app/app.py
-              subPath: app.py
           volumes:
           - name: html-volume
             configMap:
@@ -103,10 +103,10 @@ steps:
         nodePort: 30090
     EOF
 
-    # 3. Força o reinício para aplicar a página instantaneamente
+    # 4. Força o Kubernetes a atualizar o container instantaneamente
     kubectl rollout restart deployment wildfly-corporativo
     
     echo "=========================================================="
-    echo "🎉 PROCESSO CONCLUÍDO COM SUCESSO!"
+    echo "🎉 INFRAESTRUTURA IMPLEMENTADA COM SUCESSO!"
     echo "=========================================================="
-  displayName: 'Deploy Nativo via Azure Pipelines'
+  displayName: 'Deploy de Arquitetura Unificada'
