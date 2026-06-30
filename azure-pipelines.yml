@@ -2,25 +2,111 @@ trigger:
 - main
 
 pool:
-  name: 'Default' # Avisa para a Microsoft usar o SEU robô "BkpNetbox" que está online no seu Ubuntu!
+  name: 'Default' # Usa o seu robô online no Ubuntu
 
 steps:
 - script: |
     echo "=========================================================="
-    echo "🚀 INICIANDO A ESTEIRA AUTOMÁTICA DE DEVOPS (CI/CD)"
+    echo "🚀 DEPLOY DIRETO E COMPLETO NO KUBERNETES"
     echo "=========================================================="
     
-    # 1. Cria a configuração visual (HTML) atualizada do Desenvolvedor dentro do Kubernetes
+    # 1. Injeta o HTML do desenvolvedor direto na memória do cluster
     kubectl create configmap jogo-html --from-file=votos.html=$(System.DefaultWorkingDirectory)/jogo.html -o yaml --dry-run=client | kubectl apply -f -
     
-    # 2. Aplica ou atualiza a arquitetura dos servidores (WildFly Corporativo + PostgreSQL)
-    # Buscaremos diretamente o arquivo de infraestrutura que você salvou no outro repositório ou aplicaremos localmente
-    kubectl apply -f /home/admin/projeto-corporativo/infra-devops/arquitetura-corporativa.yaml
-    
-    # 3. Força o Kubernetes a atualizar o container instantaneamente com o novo jogo.html
+    # 2. Injeta a API em Python e o Banco PostgreSQL direto (Sem depender de arquivos locais)
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: postgres-corporativo
+    spec:
+      selector:
+        app: postgres-corp
+      ports:
+      - protocol: TCP
+        port: 5432
+        targetPort: 5432
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: postgres-corporativo
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: postgres-corp
+      template:
+        metadata:
+          labels:
+            app: postgres-corp
+        spec:
+          containers:
+          - name: postgres
+            image: postgres:15-alpine
+            env:
+            - name: POSTGRES_DB
+              value: javadb
+            - name: POSTGRES_USER
+              value: javauser
+            - name: POSTGRES_PASSWORD
+              value: javasenha123
+            ports:
+            - containerPort: 5432
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: wildfly-corporativo
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: wildfly-corp
+      template:
+        metadata:
+          labels:
+            app: wildfly-corp
+        spec:
+          containers:
+          - name: python-app
+            image: python:3.10-slim
+            command: ["/bin/sh", "-c"]
+            args:
+            - "pip install psycopg2-binary && python /app/app.py"
+            ports:
+            - containerPort: 8080
+            volumeMounts:
+            - name: html-volume
+              mountPath: /app/votos.html
+              subPath: votos.html
+            - name: html-volume
+              mountPath: /app/app.py
+              subPath: app.py
+          volumes:
+          - name: html-volume
+            configMap:
+              name: jogo-html
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: wildfly-corporativo-service
+    spec:
+      type: NodePort
+      selector:
+        app: wildfly-corp
+      ports:
+      - protocol: TCP
+        port: 8080
+        targetPort: 8080
+        nodePort: 30090
+    EOF
+
+    # 3. Força o reinício para aplicar a página instantaneamente
     kubectl rollout restart deployment wildfly-corporativo
     
     echo "=========================================================="
-    echo "🎉 SISTEMA ATUALIZADO COM SUCESSO NA PORTA 30090!"
+    echo "🎉 PROCESSO CONCLUÍDO COM SUCESSO!"
     echo "=========================================================="
-  displayName: 'Deploy Automatizado no Kubernetes do Ubuntu'
+  displayName: 'Deploy Nativo via Azure Pipelines'
