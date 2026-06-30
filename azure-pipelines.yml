@@ -7,16 +7,13 @@ pool:
 steps:
 - script: |
     echo "=========================================================="
-    echo "🚀 DEPLOY SEGURO E DIRETO VIA AZURE PIPELINES"
+    echo "🚀 DEPLOY LIMPO E AUTOMATIZADO VIA AZURE PIPELINES"
     echo "=========================================================="
     
-    # 1. Deleta o ConfigMap antigo para evitar lixo de memória
-    kubectl delete configmap jogo-html --ignore-not-found
-    
-    # 2. Cria o ConfigMap novo injetando o jogo.html do desenvolvedor como index.html
+    # 1. Cria o ConfigMap puxando direto o jogo.html que o Dev enviou ao GitHub
     kubectl create configmap jogo-html --from-file=index.html=$(System.DefaultWorkingDirectory)/jogo.html -o yaml --dry-run=client | kubectl apply -f -
     
-    # 3. Cria a infraestrutura do Banco de Dados Relacional PostgreSQL Corporativo
+    # 2. Cria a infraestrutura do Banco de Dados Relacional PostgreSQL Corporativo
     cat <<'EOF' | kubectl apply -f -
     apiVersion: v1
     kind: Service
@@ -58,7 +55,7 @@ steps:
             - containerPort: 5432
     EOF
 
-    # 4. Cria o Servidor Web Corporativo rodando o servidor estático nativo do Python
+    # 3. Cria o Servidor Web Corporativo rodando o servidor estático nativo do Python
     cat <<'EOF' | kubectl apply -f -
     apiVersion: apps/v1
     kind: Deployment
@@ -106,10 +103,10 @@ steps:
         nodePort: 30090
     EOF
 
-    # 5. Força o reinício rápido para limpar o cache antigo
+    # 4. Força o Kubernetes a atualizar o container instantaneamente
     kubectl rollout restart deployment wildfly-corporativo
     
     echo "=========================================================="
-    echo "🎉 INFRAESTRUTURA RESTAURADA E COMPLETA!"
+    echo "🎉 INFRAESTRUTURA IMPLEMENTADA COM SUCESSO!"
     echo "=========================================================="
-  displayName: 'Deploy de Arquitetura Limpa'
+  displayName: 'Deploy de Arquitetura Unificada'
