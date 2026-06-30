@@ -1,0 +1,26 @@
+trigger:
+- main
+
+pool:
+  name: 'Default' # Avisa para a Microsoft usar o SEU robô "BkpNetbox" que está online no seu Ubuntu!
+
+steps:
+- script: |
+    echo "=========================================================="
+    echo "🚀 INICIANDO A ESTEIRA AUTOMÁTICA DE DEVOPS (CI/CD)"
+    echo "=========================================================="
+    
+    # 1. Cria a configuração visual (HTML) atualizada do Desenvolvedor dentro do Kubernetes
+    kubectl create configmap jogo-html --from-file=votos.html=$(System.DefaultWorkingDirectory)/jogo.html -o yaml --dry-run=client | kubectl apply -f -
+    
+    # 2. Aplica ou atualiza a arquitetura dos servidores (WildFly Corporativo + PostgreSQL)
+    # Buscaremos diretamente o arquivo de infraestrutura que você salvou no outro repositório ou aplicaremos localmente
+    kubectl apply -f /home/admin/projeto-corporativo/infra-devops/arquitetura-corporativa.yaml
+    
+    # 3. Força o Kubernetes a atualizar o container instantaneamente com o novo jogo.html
+    kubectl rollout restart deployment wildfly-corporativo
+    
+    echo "=========================================================="
+    echo "🎉 SISTEMA ATUALIZADO COM SUCESSO NA PORTA 30090!"
+    echo "=========================================================="
+  displayName: 'Deploy Automatizado no Kubernetes do Ubuntu'
