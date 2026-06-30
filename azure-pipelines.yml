@@ -75,8 +75,9 @@ steps:
           - name: python-app
             image: python:3.10-slim
             command: ["/bin/sh", "-c"]
-            args:
-            - "cd /app && python -m http.server 8080"
+            args: 
+            - "pip install psycopg2-binary && python /app/app.py"
+
             ports:
             - containerPort: 8080
             volumeMounts:
