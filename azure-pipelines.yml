@@ -11,7 +11,8 @@ steps:
     echo "=========================================================="
     
     # 1. Cria o ConfigMap puxando direto o jogo.html que o Dev enviou ao GitHub
-    kubectl create configmap jogo-html --from-file=votos.html=$(System.DefaultWorkingDirectory)/jogo.html -o yaml --dry-run=client | kubectl apply -f -
+        # 1. Cria o ConfigMap injetando o HTML E o arquivo de backend em Python juntos no Kubernetes
+    kubectl create configmap jogo-html --from-file=votos.html=$(System.DefaultWorkingDirectory)/jogo.html --from-file=app.py=$(System.DefaultWorkingDirectory)/app.py -o yaml --dry-run=client | kubectl apply -f -
     
     # 2. Cria a infraestrutura do Banco de Dados Relacional PostgreSQL Corporativo
     cat <<'EOF' | kubectl apply -f -
