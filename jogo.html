@@ -2,34 +2,33 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Torneio de Futebol Corporativo - WildFly</title>
+    <meta http-equiv="refresh" content="5">
+    <title>Torneio de Futebol Corporativo - Alta Carga</title>
     <style>
         body { font-family: Arial, sans-serif; background: #0f172a; color: white; text-align: center; padding: 20px; }
         .painel { max-width: 500px; margin: auto; background: #1e293b; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         h1 { color: #3b82f6; }
         .botoes { display: flex; flex-direction: column; gap: 10px; margin: 20px 0; }
-        .btn { background: #10b981; border: none; color: white; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.2s; }
-        .btn:hover { background: #059669; }
+        .btn { border: none; color: white; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        .btn:hover { transform: scale(1.02); filter: brightness(1.1); }
     </style>
 </head>
 <body>
     <div class="painel">
         <h1>🏆 Torneio Corporativo de Futebol 🏆</h1>
-    <p>Vote no seu jogador favorito do campeonato atual:</p>
-    <div class="botoes">
-	<button class="btn" style="background: #e11d48;" onclick="votar('Jogador A')">🏃‍♂️ Artilheiro - Jogador A</button>
-	<button class="btn" style="background: #1d4ed8;" onclick="votar('Jogador B')">🧤 Paredão - Jogador B</button>
-        <button class="btn" style="background: #d97706;" onclick="votar('Jogador C')">⚡ Craque - Neymar Jr</button>
-    </div>        
-
-        <p id="status" style="color: #f59e0b; font-weight: bold;"></p>
+        <p>Vote no seu jogador favorito do campeonato atual:</p>
+        <div class="botoes">
+            <button class="btn" style="background: #e11d48;" onclick="votar('Jogador A')">🏃‍♂️ Artilheiro - Jogador A</button>
+            <button class="btn" style="background: #1d4ed8;" onclick="votar('Jogador B')">🧤 Paredão - Jogador B</button>
+            <button class="btn" style="background: #d97706;" onclick="votar('Jogador C')">⚡ Craque - Neymar Jr</button>
+        </div>
+        <p id="status" style="color: #10b981; font-weight: bold;"></p>
     </div>
     <script>
         function votar(nome) {
-            document.getElementById('status').innerText = "Enviando voto para o banco de dados... 🚀";
-            fetch('/votar?jogador=' + encodeURIComponent(nome))
-                .then(res => res.text())
-                .then(() => document.getElementById('status').innerText = "Voto computado para " + nome + "! 🎉");
+            document.getElementById('status').innerText = "Voto computado para " + nome + "! 🎉 Atualize o DBeaver!";
+            // Simula o disparo assíncrono para a rota de dados do balanceador
+            fetch('/api/votar?jogador=' + encodeURIComponent(nome)).catch(() => {});
         }
     </script>
 </body>
