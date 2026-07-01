@@ -7,16 +7,16 @@ pool:
 steps:
 - script: |
     echo "=========================================================="
-    echo "🚀 REESTABELECENDO ARQUITETURA ESTÁVEL DE ALTA PERFORMANCE"
+    echo "🚀 DEPLOY DA API DINÂMICA INTEGRADA AO POSTGRESQL"
     echo "=========================================================="
     
-    # 1. Limpa resquícios antigos para destravar a porta
+    # 1. Limpa o ConfigMap antigo
     kubectl delete configmap jogo-html --ignore-not-found
     
     # 2. Cria o ConfigMap novo injetando o jogo.html do desenvolvedor
     kubectl create configmap jogo-html --from-file=index.html=$(System.DefaultWorkingDirectory)/jogo.html -o yaml --dry-run=client | kubectl apply -f -
     
-    # 3. Garante que o PostgreSQL Corporativo está rodando e limpo
+    # 3. Garante que a infraestrutura do Banco PostgreSQL Corporativo está ativa
     cat <<'EOF' | kubectl apply -f -
     apiVersion: v1
     kind: Service
@@ -58,14 +58,14 @@ steps:
             - containerPort: 5432
     EOF
 
-    # 4. Cria as 3 Réplicas do Servidor Nginx (Livre de Erros e Loops de Rede)
+    # 4. Cria o Servidor com Código de Conexão Direta ao Banco (Livre de Travamentos)
     cat <<'EOF' | kubectl apply -f -
     apiVersion: apps/v1
     kind: Deployment
     metadata:
       name: wildfly-corporativo
     spec:
-      replicas: 3
+      replicas: 2
       selector:
         matchLabels:
           app: wildfly-corp
@@ -75,13 +75,71 @@ steps:
             app: wildfly-corp
         spec:
           containers:
-          - name: nginx-app
-            image: nginx:alpine
+          - name: python-app
+            image: python:3.10-slim
+            command: ["/bin/sh", "-c"]
+            args:
+            - |
+              cat <<'INNER_EOF' > /app/app.py
+              import http.server
+              import socketserver
+              import urllib.parse
+              import psycopg2
+              import os
+              from threading import Thread
+
+              PORT = 8080
+              DB_HOST = "postgres-service"
+              DB_NAME = "javadb"
+              DB_USER = "javauser"
+              DB_PASS = "javasenha123"
+
+              class MyHandler(http.server.SimpleHTTPRequestHandler):
+                  def do_GET(self):
+                      parsed_url = urllib.parse.urlparse(self.path)
+                      if parsed_url.path == "/" or parsed_url.path == "/index.html":
+                          self.send_response(200)
+                          self.send_header("Content-Type", "text/html; charset=utf-8")
+                          self.end_headers()
+                          with open("/app/index.html", "rb") as f:
+                              self.wfile.write(f.read())
+                      elif parsed_url.path == "/api/votar" or parsed_url.path == "/votar":
+                          params = urllib.parse.parse_qs(parsed_url.query)
+                          jogador = params.get('jogador', [None])
+                          if jogador and jogador[0]:
+                              try:
+                                  conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
+                                  cur = conn.cursor()
+                                  cur.execute("UPDATE votos SET quantidade_votos = quantidade_votos + 1 WHERE jogador = %s;", (jogador[0],))
+                                  conn.commit()
+                                  cur.close()
+                                  conn.close()
+                                  self.send_response(200)
+                                  self.send_header("Content-Type", "text/plain")
+                                  self.end_headers()
+                                  self.wfile.write(b"OK")
+                              except Exception as e:
+                                  self.send_response(500)
+                                  self.end_headers()
+                                  self.wfile.write(str(e).encode())
+                      else:
+                          self.send_response(404)
+                          self.end_headers()
+
+              class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+                  pass
+
+              os.chdir("/app")
+              httpd = ThreadedHTTPServer(("", PORT), MyHandler)
+              print("Servidor Ativo")
+              httpd.serve_forever()
+              INNER_EOF
+              pip install psycopg2-binary && python /app/app.py
             ports:
-            - containerPort: 80
+            - containerPort: 8080
             volumeMounts:
             - name: html-volume
-              mountPath: /usr/share/nginx/html/index.html
+              mountPath: /app/index.html
               subPath: index.html
           volumes:
           - name: html-volume
@@ -98,15 +156,15 @@ steps:
         app: wildfly-corp
       ports:
       - protocol: TCP
-        port: 80
-        targetPort: 80
+        port: 8080
+        targetPort: 8080
         nodePort: 30090
     EOF
 
-    # 5. Força a reinicialização para limpar qualquer cache pendente
+    # 5. Força a reinicialização rápida para aplicar a nova infraestrutura
     kubectl rollout restart deployment wildfly-corporativo
     
     echo "=========================================================="
-    echo "🎉 SISTEMA RESTAURADO E PRONTO PARA USO!"
+    echo "🎉 SISTEMA DINÂMICO PRONTO!"
     echo "=========================================================="
-  displayName: 'Deploy de Arquitetura Unificada Limpa'
+  displayName: 'Deploy de API Dinâmica Multi-Thread'
