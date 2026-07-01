@@ -88,7 +88,7 @@ steps:
               import os
 
               PORT = 8080
-              DB_HOST = "postgres-corporativo"
+              DB_HOST = "postgres-service"
               DB_NAME = "javadb"
               DB_USER = "javauser"
               DB_PASS = "javasenha123"
