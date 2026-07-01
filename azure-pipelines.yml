@@ -7,41 +7,16 @@ pool:
 steps:
 - script: |
     echo "=========================================================="
-    echo "🚀 ATIVANDO INTEGRAÇÃO DE PONTA A PONTA (PROXY REVERSO)"
+    echo "🚀 REESTABELECENDO ARQUITETURA ESTÁVEL DE ALTA PERFORMANCE"
     echo "=========================================================="
     
-    # 1. Limpa resquícios antigos para evitar conflitos
+    # 1. Limpa resquícios antigos para destravar a porta
     kubectl delete configmap jogo-html --ignore-not-found
     
-    # 2. Cria o ConfigMap novo contendo o HTML e a configuração inteligente do Nginx
-    cat <<'EOF' | kubectl apply -f -
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: jogo-html
-    data:
-      index.html: |
-        $(cat $(System.DefaultWorkingDirectory)/jogo.html | sed 's/^/        /')
-      nginx.conf: |
-        events { worker_connections 1024; }
-        http {
-            include /etc/nginx/mime.types;
-            server {
-                listen 80;
-                location / {
-                    root /usr/share/nginx/html;
-                    index index.html;
-                }
-                # MÁGICA DE DEVOPS: Desvia o clique do botão direto para a API que fala com o banco!
-                location /votar {
-                    proxy_pass http://postgres-service:5432;
-                    proxy_connect_timeout 2s;
-                }
-            }
-        }
-    EOF
-
-    # 3. Garante que o PostgreSQL Corporativo está rodando perfeitamente
+    # 2. Cria o ConfigMap novo injetando o jogo.html do desenvolvedor
+    kubectl create configmap jogo-html --from-file=index.html=$(System.DefaultWorkingDirectory)/jogo.html -o yaml --dry-run=client | kubectl apply -f -
+    
+    # 3. Garante que o PostgreSQL Corporativo está rodando e limpo
     cat <<'EOF' | kubectl apply -f -
     apiVersion: v1
     kind: Service
@@ -83,7 +58,7 @@ steps:
             - containerPort: 5432
     EOF
 
-    # 4. Cria as 3 Réplicas do Servidor conectadas à nova inteligência de rede
+    # 4. Cria as 3 Réplicas do Servidor Nginx (Livre de Erros e Loops de Rede)
     cat <<'EOF' | kubectl apply -f -
     apiVersion: apps/v1
     kind: Deployment
@@ -108,9 +83,6 @@ steps:
             - name: html-volume
               mountPath: /usr/share/nginx/html/index.html
               subPath: index.html
-            - name: html-volume
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
           volumes:
           - name: html-volume
             configMap:
@@ -131,10 +103,10 @@ steps:
         nodePort: 30090
     EOF
 
-    # 5. Força a reinicialização para limpar o cache antigo
+    # 5. Força a reinicialização para limpar qualquer cache pendente
     kubectl rollout restart deployment wildfly-corporativo
     
     echo "=========================================================="
-    echo "🎉 FLUXO DE VOTOS INTEGRADO COM SUCESSO!"
+    echo "🎉 SISTEMA RESTAURADO E PRONTO PARA USO!"
     echo "=========================================================="
-  displayName: 'Deploy de Arquitetura Unificada de Alta Performance'
+  displayName: 'Deploy de Arquitetura Unificada Limpa'
