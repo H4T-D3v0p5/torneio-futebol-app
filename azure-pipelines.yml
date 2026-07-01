@@ -7,10 +7,16 @@ pool:
 steps:
 - script: |
     echo "=========================================================="
-    echo "🚀 IMPLANTANDO ARQUITETURA CORPORATIVA COM WILDFLY REAL"
+    echo "🚀 IMPLANTANDO ARQUITETURA BLINDADA DE ALTA PERFORMANCE"
     echo "=========================================================="
     
-    # 1. Garante que o Banco PostgreSQL Corporativo está ativo
+    # 1. Limpa o ConfigMap antigo para evitar lixo de memória
+    kubectl delete configmap jogo-html --ignore-not-found
+    
+    # 2. Cria o ConfigMap novo injetando o jogo.html do desenvolvedor
+    kubectl create configmap jogo-html --from-file=index.html=$(System.DefaultWorkingDirectory)/jogo.html -o yaml --dry-run=client | kubectl apply -f -
+    
+    # 3. Garante que a infraestrutura do Banco PostgreSQL Corporativo está ativa
     cat <<'EOF' | kubectl apply -f -
     apiVersion: v1
     kind: Service
@@ -52,7 +58,7 @@ steps:
             - containerPort: 5432
     EOF
 
-    # 2. Cria o Servidor WildFly de Alta Performance com Pool de Conexões
+    # 4. Cria o Servidor com Processamento Paralelo Assíncrono (Suporta Alta Carga)
     cat <<'EOF' | kubectl apply -f -
     apiVersion: apps/v1
     kind: Deployment
@@ -69,19 +75,76 @@ steps:
             app: wildfly-corp
         spec:
           containers:
-          - name: wildfly-app
-            image: ricardozanini/wildfly-postgres-football-game:latest
-            env:
-            - name: DB_HOST
-              value: "postgres-service"
-            - name: DB_USER
-              value: "javauser"
-            - name: DB_PASSWORD
-              value: "javasenha123"
-            - name: DB_NAME
-              value: "javadb"
+          - name: python-app
+            image: python:3.10-slim
+            command: ["/bin/sh", "-c"]
+            args:
+            - |
+              cat <<'INNER_EOF' > /app/app.py
+              import http.server
+              import socketserver
+              import urllib.parse
+              import psycopg2
+              import os
+              from threading import Thread
+
+              PORT = 8080
+              DB_HOST = "postgres-service"
+              DB_NAME = "javadb"
+              DB_USER = "javauser"
+              DB_PASS = "javasenha123"
+
+              class MyHandler(http.server.SimpleHTTPRequestHandler):
+                  def do_GET(self):
+                      parsed_url = urllib.parse.urlparse(self.path)
+                      if parsed_url.path == "/" or parsed_url.path == "/index.html":
+                          self.send_response(200)
+                          self.send_header("Content-Type", "text/html; charset=utf-8")
+                          self.end_headers()
+                          with open("/app/index.html", "rb") as f:
+                              self.wfile.write(f.read())
+                      elif parsed_url.path == "/votar":
+                          params = urllib.parse.parse_qs(parsed_url.query)
+                          jogador = params.get('jogador', [None])
+                          if jogador and jogador[0]:
+                              try:
+                                  conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
+                                  cur = conn.cursor()
+                                  cur.execute("UPDATE votos SET quantidade_votos = quantidade_votos + 1 WHERE jogador = %s;", (jogador[0],))
+                                  conn.commit()
+                                  cur.close()
+                                  conn.close()
+                                  self.send_response(200)
+                                  self.end_headers()
+                                  self.wfile.write(b"OK")
+                              except Exception as e:
+                                  self.send_response(500)
+                                  self.end_headers()
+                                  self.wfile.write(str(e).encode())
+                      else:
+                          self.send_response(404)
+                          self.end_headers()
+
+              # O SUPERPODER: Transforma o servidor em ThreadingMixIn (Processamento em paralelo real!)
+              class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+                  pass
+
+              os.chdir("/app")
+              httpd = ThreadedHTTPServer(("", PORT), MyHandler)
+              print("Servidor de Alta Performance Ativo")
+              httpd.serve_forever()
+              INNER_EOF
+              pip install psycopg2-binary && python /app/app.py
             ports:
             - containerPort: 8080
+            volumeMounts:
+            - name: html-volume
+              mountPath: /app/index.html
+              subPath: index.html
+          volumes:
+          - name: html-volume
+            configMap:
+              name: jogo-html
     ---
     apiVersion: v1
     kind: Service
@@ -95,13 +158,13 @@ steps:
       - protocol: TCP
         port: 8080
         targetPort: 8080
-        nodePort: 30090
+        nodeNodePort: 30090
     EOF
 
-    # 3. Força a reinicialização rápida para aplicar a nova infraestrutura
+    # 5. Força a reinicialização rápida para limpar o cache antigo
     kubectl rollout restart deployment wildfly-corporativo
     
     echo "=========================================================="
-    echo "🎉 WILDFLY CORPORATIVO IMPLEMENTADO!"
+    echo "🎉 ARQUITETURA DE ALTA CARGA IMPLANTADA!"
     echo "=========================================================="
-  displayName: 'Deploy de Arquitetura de Alta Performance'
+  displayName: 'Deploy de Servidor Multi-Thread'
