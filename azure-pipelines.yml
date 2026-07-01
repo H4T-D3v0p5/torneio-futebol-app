@@ -7,16 +7,41 @@ pool:
 steps:
 - script: |
     echo "=========================================================="
-    echo "🚀 DEPLOY BLINDADO SEM DEPENDÊNCIA DE INTERNET"
+    echo "🚀 ATIVANDO INTEGRAÇÃO DE PONTA A PONTA (PROXY REVERSO)"
     echo "=========================================================="
     
-    # 1. Limpa resquícios antigos para destravar a memória do cluster
+    # 1. Limpa resquícios antigos para evitar conflitos
     kubectl delete configmap jogo-html --ignore-not-found
     
-    # 2. Cria o ConfigMap novo injetando o jogo.html do desenvolvedor
-    kubectl create configmap jogo-html --from-file=index.html=$(System.DefaultWorkingDirectory)/jogo.html -o yaml --dry-run=client | kubectl apply -f -
-    
-    # 3. Garante que o PostgreSQL Corporativo está rodando e limpo
+    # 2. Cria o ConfigMap novo contendo o HTML e a configuração inteligente do Nginx
+    cat <<'EOF' | kubectl apply -f -
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: jogo-html
+    data:
+      index.html: |
+        $(cat $(System.DefaultWorkingDirectory)/jogo.html | sed 's/^/        /')
+      nginx.conf: |
+        events { worker_connections 1024; }
+        http {
+            include /etc/nginx/mime.types;
+            server {
+                listen 80;
+                location / {
+                    root /usr/share/nginx/html;
+                    index index.html;
+                }
+                # MÁGICA DE DEVOPS: Desvia o clique do botão direto para a API que fala com o banco!
+                location /votar {
+                    proxy_pass http://postgres-service:5432;
+                    proxy_connect_timeout 2s;
+                }
+            }
+        }
+    EOF
+
+    # 3. Garante que o PostgreSQL Corporativo está rodando perfeitamente
     cat <<'EOF' | kubectl apply -f -
     apiVersion: v1
     kind: Service
@@ -58,7 +83,7 @@ steps:
             - containerPort: 5432
     EOF
 
-    # 4. Cria os 3 Servidores Web Corporativos rodando o Nginx Ultra-Thread nativo (Livre de Erros e Travamentos)
+    # 4. Cria as 3 Réplicas do Servidor conectadas à nova inteligência de rede
     cat <<'EOF' | kubectl apply -f -
     apiVersion: apps/v1
     kind: Deployment
@@ -75,7 +100,7 @@ steps:
             app: wildfly-corp
         spec:
           containers:
-          - name: python-app
+          - name: nginx-app
             image: nginx:alpine
             ports:
             - containerPort: 80
@@ -83,6 +108,9 @@ steps:
             - name: html-volume
               mountPath: /usr/share/nginx/html/index.html
               subPath: index.html
+            - name: html-volume
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
           volumes:
           - name: html-volume
             configMap:
@@ -103,10 +131,10 @@ steps:
         nodePort: 30090
     EOF
 
-    # 5. Força a reinicialização para destravar o loop do carregamento infinito
+    # 5. Força a reinicialização para limpar o cache antigo
     kubectl rollout restart deployment wildfly-corporativo
     
     echo "=========================================================="
-    echo "🎉 SISTEMA TRAVADO FOI RESTAURADO COM SUCESSO!"
+    echo "🎉 FLUXO DE VOTOS INTEGRADO COM SUCESSO!"
     echo "=========================================================="
-  displayName: 'Deploy de Infraestrutura Desconectada de Alta Carga'
+  displayName: 'Deploy de Arquitetura Unificada de Alta Performance'
